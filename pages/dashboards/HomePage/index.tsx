@@ -5,65 +5,29 @@ import {
   Card,
   CardActions,
   CardContent,
+  CardMedia,
   Container,
-  Typography,
   Dialog,
-  DialogTitle,
-  DialogContent,
   DialogActions,
+  DialogContent,
+  DialogTitle,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
+  Typography
 } from '@mui/material';
 import { styled } from '@mui/system';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import AutorenewIcon from '@mui/icons-material/Autorenew';
 
 import SidebarLayout from '@/layouts/SidebarLayout';
 import PageHeader from '@/content/Dashboards/Crypto/PageHeader';
 import PageTitleWrapper from '@/components/PageTitleWrapper';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { blog } from '@/api/api';
+import { CreateBlog } from '@/api/api';
 
-interface Sample {
-  id: string;
-  name: string;
-  createdAt: string;
-  status: string;
-  downloadUrl: string;
-}
-
-const SAMPLES: Sample[] = [
-  {
-    id: '1',
-    name: 'Amostra 1',
-    createdAt: '23 de Maio de 2023',
-    status: 'Processando',
-    downloadUrl: 'https://example.com/sample1.zip'
-  },
-  {
-    id: '2',
-    name: 'Amostra 2',
-    createdAt: '10 de Março de 2023',
-    status: 'Completo',
-    downloadUrl: 'https://example.com/sample2.zip'
-  },
-  {
-    id: '3',
-    name: 'Amostra 3',
-    createdAt: '9 de Outubro de 2022',
-    status: 'Processando',
-    downloadUrl: 'https://example.com/sample3.zip'
-  },
-  {
-    id: '4',
-    name: 'Amostra 3',
-    createdAt: '9 de Outubro de 2022',
-    status: 'Processando',
-    downloadUrl: 'https://example.com/sample3.zip'
-  }
-];
+const ReactQuill = dynamic(() => import('react-quill'), {
+  ssr: false
+});
+import 'react-quill/dist/quill.snow.css'; // Importe o CSS
 
 const CardWrapper = styled(Card)(
   ({ theme }) => `
@@ -71,30 +35,139 @@ const CardWrapper = styled(Card)(
   `
 );
 
-const StatusIconWrapper = styled(Box)(
-  ({ theme }) => `
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: ${theme.spacing(1)};
-  `
-);
-
 function DashboardCrypto() {
-  const [openDialog, setOpenDialog] = useState(false);
+  const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [currentPost, setCurrentPost] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [blogPosts, setBlogPosts] = useState([]);
+  const [blogForm, setBlogForm] = useState({
+    title: '',
+    url_amigavel: '',
+    conteudo: '',
+    image: null
+  });
 
-  const handleDownloadClick = (downloadUrl: string) => {
-    // Adicione o código para baixar o arquivo aqui
-    console.log('Baixar:', downloadUrl);
+  const [editorContent, setEditorContent] = useState('');
+
+  const handlePostClick = (post) => {
+    setCurrentPost(post);
+    setSelectedImage(post.image);
+    setOpenEditDialog(true);
   };
-  const handleRequestMoreSamples = () => {
-    setOpenDialog(true);
+
+  const handleAddPostClick = () => {
+    setOpenAddDialog(true);
   };
+
+  const handleDialogClose = () => {
+    setOpenAddDialog(false);
+    setOpenEditDialog(false);
+    setCurrentPost(null);
+  };
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      setCurrentPost({ ...currentPost, image: reader.result });
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const handleFormChange = (event) => {
+    const { name, value } = event.target;
+    setBlogForm({ ...blogForm, [name]: value });
+  };
+
+  const modules = {
+    toolbar: [
+      ['bold', 'italic', 'underline', 'strike'], // toggled buttons
+      ['blockquote', 'code-block'],
+
+      [{ header: 1 }, { header: 2 }], // custom button values
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      [{ script: 'sub' }, { script: 'super' }], // superscript/subscript
+      [{ indent: '-1' }, { indent: '+1' }], // outdent/indent
+      [{ direction: 'rtl' }], // text direction
+
+      [{ size: ['small', false, 'large', 'huge'] }], // custom dropdown
+      [{ header: [1, 2, 3, 4, 5, 6, false] }],
+
+      [{ color: [] }, { background: [] }], // dropdown with defaults from theme
+      [{ font: [] }],
+      [{ align: [] }],
+
+      ['clean'], // remove formatting button
+
+      ['image', 'video'] // link and image, video
+    ]
+  };
+
+  const handleEditFileUpload = (event) => {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      setCurrentPost({ ...currentPost, image: reader.result });
+      setSelectedImage(reader.result);
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  useEffect(() => {
+    fetchBlogPosts();
+  }, []);
+
+  const fetchBlogPosts = async () => {
+    try {
+      const response = await blog();
+      setBlogPosts(response.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleFormSubmit = async (event) => {
+    event.preventDefault();
+
+    try {
+      const response = await CreateBlog(blogForm);
+      console.log(response.data); // Você pode tratar a resposta conforme necessário
+
+      // Limpar o formulário
+      setBlogForm({
+        title: '',
+        url_amigavel: '',
+        conteudo: '',
+        image: null
+      });
+
+      // Fechar o diálogo de adição de nova notícia
+      setOpenAddDialog(false);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleEditorChange = (content) => {
+    setEditorContent(content);
+    setBlogForm({ ...blogForm, conteudo: content });
+  };
+
+  useEffect(() => {
+    if (currentPost) {
+      setEditorContent(currentPost.conteudo);
+    }
+  }, [currentPost]);
 
   return (
     <>
       <Head>
-        <title>Home Dashboard</title>
+        <title>Blog</title>
       </Head>
       <PageTitleWrapper>
         <PageHeader />
@@ -106,47 +179,41 @@ function DashboardCrypto() {
             flexDirection: 'row',
             flexWrap: 'wrap',
             gap: 2,
-            justifyContent: 'center', // Centraliza horizontalmente
-            alignItems: 'center' // Centraliza verticalmente
+            justifyContent: 'center',
+            alignItems: 'stretch'
           }}
         >
-          {SAMPLES.map((sample) => (
+          {blogPosts.map((post) => (
             <CardWrapper
-              key={sample.id}
-              sx={{ flexBasis: 'calc(33.33% - 8px)' }}
+              key={post.uuid}
+              sx={{ flexBasis: { xs: '100%', sm: '50%', md: '33.33%' } }}
             >
+              <CardMedia
+                component="img"
+                height="140"
+                image={post.image}
+                alt={post.title}
+              />
               <CardContent>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    mb: 1
-                  }}
-                >
-                  <StatusIconWrapper>
-                    {sample.status === 'Completo' ? (
-                      <CheckCircleIcon color="success" />
-                    ) : (
-                      <AutorenewIcon color="warning" />
-                    )}
-                  </StatusIconWrapper>
-                  <Typography variant="h5" component="h2">
-                    {sample.name}
-                  </Typography>
-                </Box>
-                <Typography sx={{ mb: 1.5 }} color="text.secondary">
-                  Criado em {sample.createdAt}
+                <Typography variant="h5" component="h2">
+                  {post.title}
                 </Typography>
-                <Typography variant="body2">{sample.status}</Typography>
+                <Typography sx={{ mb: 1.5 }} color="text.secondary">
+                  Publicado em {post.post_day}
+                </Typography>
+                <Typography
+                  variant="body1"
+                  dangerouslySetInnerHTML={{
+                    __html:
+                      post.conteudo.slice(0, 50) +
+                      (post.conteudo.length > 50 ? '...' : '')
+                  }}
+                />
               </CardContent>
               <CardActions>
-                <Button
-                  size="small"
-                  onClick={() => handleDownloadClick(sample.downloadUrl)}
-                >
-                  Download
+                <Button size="small" onClick={() => handlePostClick(post)}>
+                  Ler mais
                 </Button>
-                <Button size="small">Detalhes</Button>
               </CardActions>
             </CardWrapper>
           ))}
@@ -161,35 +228,157 @@ function DashboardCrypto() {
           <Button
             variant="contained"
             color="primary"
-            onClick={handleRequestMoreSamples}
+            onClick={handleAddPostClick}
           >
-            Solicitar mais amostras
+            Adicionar notícia
           </Button>
         </Box>
-        <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-          <DialogTitle>Solicitar mais amostras</DialogTitle>
+        <Dialog
+          open={openAddDialog}
+          onClose={handleDialogClose}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Adicionar nova notícia</DialogTitle>
           <DialogContent>
-            <FormControl fullWidth margin="normal">
-              <InputLabel>Tipo de Amostra</InputLabel>
-              <Select defaultValue="">
-                <MenuItem value="">Selecione o tipo</MenuItem>
-                <MenuItem value="tipo1">Tipo 1</MenuItem>
-                <MenuItem value="tipo2">Tipo 2</MenuItem>
-              </Select>
-            </FormControl>
+            <form onSubmit={handleFormSubmit}>
+              <TextField
+                fullWidth
+                margin="normal"
+                label="Título"
+                variant="outlined"
+                name="title"
+                value={blogForm.title}
+                onChange={handleFormChange}
+              />
+              <Box
+                component="label"
+                htmlFor="file-upload"
+                sx={{
+                  display: 'block',
+                  padding: '10px',
+                  color: '#fff',
+                  backgroundColor: '#3f51b5',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  marginTop: 2
+                }}
+              >
+                Clique para fazer upload da imagem
+              </Box>
+              <input
+                accept="image/*"
+                id="file-upload"
+                type="file"
+                style={{ display: 'none' }}
+                onChange={(event) =>
+                  setBlogForm({ ...blogForm, image: event.target.files[0] })
+                }
+              />
+              {blogForm.image && (
+                <Box sx={{ marginTop: 2 }}>
+                  <img
+                    src={URL.createObjectURL(blogForm.image)}
+                    alt="Preview"
+                    style={{ width: '100%', maxHeight: '300px' }}
+                  />
+                </Box>
+              )}
+              <TextField
+                fullWidth
+                margin="normal"
+                label="url_amigavel (URL amigável)"
+                variant="outlined"
+                name="url_amigavel"
+                value={blogForm.url_amigavel}
+                onChange={handleFormChange}
+              />
+
+              <ReactQuill
+                theme="snow"
+                modules={modules}
+                style={{ height: '400px' }}
+                value={editorContent}
+                onChange={handleEditorChange}
+              />
+            </form>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDialogClose}>Cancelar</Button>
+            <Button
+              variant="contained"
+              onClick={handleFormSubmit}
+              color="primary"
+            >
+              Adicionar
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={openEditDialog}
+          onClose={handleDialogClose}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Editar notícia</DialogTitle>
+          <DialogContent>
             <TextField
               fullWidth
               margin="normal"
-              multiline
-              rows={4}
-              label="Detalhes"
+              label="Título"
               variant="outlined"
+              defaultValue={currentPost?.title}
+            />
+            {selectedImage && (
+              <Box sx={{ marginTop: 2 }}>
+                <img
+                  src={selectedImage}
+                  alt="Preview"
+                  style={{ width: '100%', maxHeight: '300px' }}
+                />
+              </Box>
+            )}
+            <Box
+              component="label"
+              htmlFor="file-upload-edit"
+              sx={{
+                display: 'block',
+                padding: '10px',
+                color: '#fff',
+                backgroundColor: '#3f51b5',
+                textAlign: 'center',
+                cursor: 'pointer',
+                marginTop: 2
+              }}
+            >
+              Clique para fazer upload da imagem
+            </Box>
+            <input
+              accept="image/*"
+              id="file-upload-edit"
+              type="file"
+              style={{ display: 'none' }}
+              onChange={handleEditFileUpload}
+            />
+            <TextField
+              fullWidth
+              margin="normal"
+              label="url_amigavel (URL amigável)"
+              variant="outlined"
+              defaultValue={currentPost?.url_amigavel}
+            />
+            <ReactQuill
+              theme="snow"
+              modules={modules}
+              defaultValue={currentPost?.conteudo}
+              style={{ height: '400px' }}
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenDialog(false)}>Cancelar</Button>
+            <Button onClick={handleDialogClose}>Cancelar</Button>
             <Button variant="contained" color="primary">
-              Solicitar
+              Salvar
             </Button>
           </DialogActions>
         </Dialog>

@@ -63,7 +63,7 @@ export default function Hero() {
         }}
       >
         <Typography variant="h1" align="center" gutterBottom>
-          VMC
+          Pets<span style={{ color: 'rgb(245, 133, 37)' }}>Mellon</span>
         </Typography>
         <Typography variant="subtitle1" align="center" gutterBottom>
           {action === 'login' && (

@@ -2,7 +2,6 @@ import { FC, ReactNode } from 'react';
 import { Box, alpha, lighten, useTheme } from '@mui/material';
 import PropTypes from 'prop-types';
 
-import Sidebar from './Sidebar';
 import Header from './Header';
 
 interface SidebarLayoutProps {
@@ -42,17 +41,13 @@ const SidebarLayout: FC<SidebarLayoutProps> = ({ children }) => {
         }}
       >
         <Header />
-        <Sidebar />
         <Box
           sx={{
             position: 'relative',
             zIndex: 5,
             display: 'block',
             flex: 1,
-            pt: `${theme.header.height}`,
-            [theme.breakpoints.up('lg')]: {
-              ml: `${theme.sidebar.width}`
-            }
+            pt: `${theme.header.height}`
           }}
         >
           <Box display="block">{children}</Box>

@@ -12,7 +12,7 @@ function PageHeader() {
         <Typography variant="h3" component="h3" gutterBottom>
           Bem - Vindo, {user.name}!
         </Typography>
-        <Typography variant="subtitle2">Amostras</Typography>
+        <Typography variant="subtitle2">Blog</Typography>
       </Grid>
     </Grid>
   );
